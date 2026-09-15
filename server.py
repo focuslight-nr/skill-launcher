@@ -46,12 +46,17 @@ def find_free_port(host: str, preferred: int) -> int:
 def build_app() -> web.Application:
     app = web.Application()
     app.add_routes(routes)
-    app.router.add_static("/", STATIC_DIR, show_index=False, name="static")
 
     async def index(request: web.Request) -> web.FileResponse:
         return web.FileResponse(STATIC_DIR / "index.html")
 
+    # Register the exact "/" route BEFORE add_static: aiohttp resolves resources
+    # in registration order, and add_static's catch-all resource matches "/"
+    # too (filename="" -> the static dir itself), which with show_index=False
+    # makes aiohttp raise 403 Forbidden on the directory. Registering our
+    # explicit index route first ensures it wins the match for "/".
     app.router.add_get("/", index)
+    app.router.add_static("/", STATIC_DIR, show_index=False, name="static")
     return app
 
 
