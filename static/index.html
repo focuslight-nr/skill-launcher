@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja" data-bs-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>skill-launcher</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { padding-bottom: 4rem; background: #f6f7f9; }
+  .skill-card { transition: box-shadow .15s ease; }
+  .skill-card:hover { box-shadow: 0 .25rem .75rem rgba(0,0,0,.08); }
+  .skill-icon { font-size: 1.6rem; line-height: 1; }
+  .category-heading { position: sticky; top: 56px; background: #f6f7f9; z-index: 5; padding: .5rem 0; }
+  .badge-source { font-weight: 400; }
+  #exportBar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #dee2e6; z-index: 20; }
+  .source-row { display: flex; align-items: center; gap: .5rem; }
+  .form-switch .form-check-input { width: 2.5em; }
+  pre.body-preview { white-space: pre-wrap; font-size: .8rem; max-height: 8rem; overflow: auto; background: #f1f3f5; padding: .5rem; border-radius: .25rem; }
+</style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h1">&#129504; skill-launcher</span>
+    <span class="text-muted small" id="targetDirLabel"></span>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>スキルソース</span>
+      <button class="btn btn-sm btn-outline-secondary" id="rescanBtn">再スキャン</button>
+    </div>
+    <div class="card-body">
+      <div id="sourceList" class="mb-3"></div>
+      <form id="addSourceForm" class="row g-2">
+        <div class="col-sm-6">
+          <input type="text" class="form-control form-control-sm" id="sourcePath" placeholder="/Users/esp/GitHub/Claude-Red/Skills など、絶対パスか ~ 展開可">
+        </div>
+        <div class="col-sm-3">
+          <input type="text" class="form-control form-control-sm" id="sourceLabel" placeholder="ラベル（省略可）">
+        </div>
+        <div class="col-sm-3">
+          <button type="submit" class="btn btn-sm btn-primary w-100">ソースを追加</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <input type="search" class="form-control" style="max-width:320px" id="searchBox" placeholder="名前・説明で検索...">
+    <select class="form-select" style="max-width:220px" id="categoryFilter">
+      <option value="">すべてのカテゴリ</option>
+    </select>
+    <select class="form-select" style="max-width:220px" id="sourceFilter">
+      <option value="">すべてのソース</option>
+    </select>
+    <div class="form-check form-switch ms-auto">
+      <input class="form-check-input" type="checkbox" id="enabledOnlyFilter">
+      <label class="form-check-label" for="enabledOnlyFilter">有効化済みのみ</label>
+    </div>
+  </div>
+
+  <div id="skillContainer"></div>
+  <div id="emptyState" class="text-center text-muted py-5 d-none">
+    スキルが見つかりません。上でソースを追加してください。
+  </div>
+</div>
+
+<div id="exportBar" class="p-2 d-none">
+  <div class="container-fluid d-flex align-items-center gap-3">
+    <span><strong id="selectedCount">0</strong> 件選択中</span>
+    <button class="btn btn-success btn-sm" id="exportBtn">選択したスキルをエクスポート</button>
+    <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn">選択解除</button>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">スキルを編集</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small" id="editPath"></div>
+        <div class="mb-3">
+          <label class="form-label">name</label>
+          <input type="text" class="form-control" id="editName">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">description</label>
+          <textarea class="form-control" id="editDescription" rows="3"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">本文（Markdown）</label>
+          <textarea class="form-control font-monospace" id="editBody" rows="16"></textarea>
+        </div>
+        <div class="alert alert-info small" id="editSavedMsg" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+        <button type="button" class="btn btn-primary" id="saveEditBtn">保存（自動バックアップ）</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
