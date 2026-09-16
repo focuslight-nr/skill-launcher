@@ -5,6 +5,10 @@ the body: no description, a name that does not match the folder Claude
 looks the skill up by, or a description so long it gets rejected. These
 checks run on every scan so the launcher can warn before you enable a skill.
 
+Each issue carries a stable `code` plus its parameters, and a Japanese
+`message` as the fallback for API and CLI consumers. The web UI renders
+the code in the viewer's own language instead of using `message`.
+
 Levels:
   error - the skill is likely to be rejected or ignored outright
   warn  - it will probably load, but something is off
@@ -13,7 +17,7 @@ Levels:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -37,55 +41,70 @@ KNOWN_KEYS = {
     "icon",
 }
 
+MESSAGES_JA = {
+    "no_frontmatter": "YAMLフロントマター（--- で囲まれたブロック）がありません。",
+    "name_missing": "frontmatter に name がありません。",
+    "name_too_long": "name が長すぎます（{length} 文字 / 上限 {max} 文字）。",
+    "name_not_kebab": "name は英小文字・数字・ハイフンのみ（例: my-skill）が推奨です。",
+    "name_folder_mismatch": "name「{name}」がフォルダ名「{dir_name}」と一致しません。",
+    "description_missing": "description がありません。Claude はこれを見て起動判断をします。",
+    "description_too_long": "description が長すぎます（{length} 文字 / 上限 {max} 文字）。",
+    "description_too_short": "description が短すぎます。何をするか＋いつ使うかを書くと起動精度が上がります。",
+    "body_empty": "本文が空です。手順や参照情報が無いとスキルとして機能しません。",
+    "unknown_keys": "見慣れない frontmatter キー: {keys}",
+}
+
 
 @dataclass
 class Issue:
     level: str
-    message: str
+    code: str
+    params: dict = field(default_factory=dict)
+
+    @property
+    def message(self) -> str:
+        return MESSAGES_JA[self.code].format(**self.params)
 
     def to_json(self) -> dict:
-        return {"level": self.level, "message": self.message}
+        return {"level": self.level, "code": self.code, "params": self.params, "message": self.message}
 
 
 def lint_skill(frontmatter: dict, body: str, dir_name: str) -> list[Issue]:
     issues: list[Issue] = []
 
     if not frontmatter:
-        issues.append(Issue("error", "YAMLフロントマター（--- で囲まれたブロック）がありません。"))
+        issues.append(Issue("error", "no_frontmatter"))
         return issues
 
     name = str(frontmatter.get("name") or "").strip()
     description = str(frontmatter.get("description") or "").strip()
 
     if not name:
-        issues.append(Issue("error", "frontmatter に name がありません。"))
+        issues.append(Issue("error", "name_missing"))
     else:
         if len(name) > MAX_NAME_LEN:
-            issues.append(Issue("error", f"name が長すぎます（{len(name)} 文字 / 上限 {MAX_NAME_LEN}）。"))
+            issues.append(Issue("error", "name_too_long", {"length": len(name), "max": MAX_NAME_LEN}))
         if not NAME_RE.match(name):
-            issues.append(Issue("warn", "name は英小文字・数字・ハイフンのみ（例: my-skill）が推奨です。"))
+            issues.append(Issue("warn", "name_not_kebab"))
         if name != dir_name:
-            issues.append(Issue("warn", f"name「{name}」がフォルダ名「{dir_name}」と一致しません。"))
+            issues.append(Issue("warn", "name_folder_mismatch", {"name": name, "dir_name": dir_name}))
 
     if not description:
-        issues.append(Issue("error", "description がありません。Claude はこれを見て起動判断をします。"))
+        issues.append(Issue("error", "description_missing"))
     else:
         if len(description) > MAX_DESCRIPTION_LEN:
             issues.append(Issue(
-                "error",
-                f"description が長すぎます（{len(description)} 文字 / 上限 {MAX_DESCRIPTION_LEN}）。",
+                "error", "description_too_long",
+                {"length": len(description), "max": MAX_DESCRIPTION_LEN},
             ))
         elif len(description) < 20:
-            issues.append(Issue(
-                "warn",
-                "description が短すぎます。何をするか＋いつ使うかを書くと起動精度が上がります。",
-            ))
+            issues.append(Issue("warn", "description_too_short"))
 
     if not body.strip():
-        issues.append(Issue("warn", "本文が空です。手順や参照情報が無いとスキルとして機能しません。"))
+        issues.append(Issue("warn", "body_empty"))
 
     unknown = sorted(k for k in frontmatter if k not in KNOWN_KEYS)
     if unknown:
-        issues.append(Issue("info", "見慣れない frontmatter キー: " + ", ".join(unknown)))
+        issues.append(Issue("info", "unknown_keys", {"keys": ", ".join(unknown)}))
 
     return issues

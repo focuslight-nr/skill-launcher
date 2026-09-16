@@ -208,3 +208,14 @@ def test_read_skill_file_stays_inside_the_skill_folder(source):
     with pytest.raises(manager.ManagerError) as exc:
         manager.read_skill_file(skill, "../../escape.txt")
     assert exc.value.code == "outside"
+
+
+def test_enable_restores_a_link_that_was_deleted_by_hand(source):
+    skill = by_name(source, "threat-modeling")
+    manager.enable_skill(skill, config.CLAUDE_SKILLS_DIR)
+    (config.CLAUDE_SKILLS_DIR / "threat-modeling").unlink()
+
+    result = manager.enable_skill(skill, config.CLAUDE_SKILLS_DIR)
+
+    assert result["restored"] is True
+    assert (config.CLAUDE_SKILLS_DIR / "threat-modeling").is_symlink()

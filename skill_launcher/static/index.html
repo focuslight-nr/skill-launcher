@@ -26,17 +26,22 @@
     <span class="navbar-brand mb-0 h1 me-2">&#129504; skill-launcher</span>
 
     <div class="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
-      <label class="small text-muted mb-0">有効化先</label>
+      <label class="small text-muted mb-0" data-i18n="nav.target"></label>
       <select class="form-select form-select-sm w-auto" style="min-width:230px;max-width:340px" id="targetSelect"></select>
-      <button class="btn btn-sm btn-outline-secondary" id="manageTargetsBtn" title="有効化先を追加・削除">…</button>
+      <button class="btn btn-sm btn-outline-secondary" id="manageTargetsBtn" data-i18n-title="nav.manageTargets">…</button>
 
-      <label class="small text-muted mb-0 ms-2">プロファイル</label>
+      <label class="small text-muted mb-0 ms-2" data-i18n="nav.profile"></label>
       <select class="form-select form-select-sm w-auto" style="min-width:180px;max-width:320px" id="profileSelect">
-        <option value="">（選択）</option>
+        <option value="" data-i18n="nav.profile.pick"></option>
       </select>
-      <button class="btn btn-sm btn-primary" id="applyProfileBtn">適用</button>
-      <button class="btn btn-sm btn-outline-secondary" id="saveProfileBtn" title="現在の有効化状態をプロファイルとして保存">現状を保存</button>
-      <button class="btn btn-sm btn-outline-danger" id="deleteProfileBtn">削除</button>
+      <button class="btn btn-sm btn-primary" id="applyProfileBtn" data-i18n="nav.apply"></button>
+      <button class="btn btn-sm btn-outline-secondary" id="saveProfileBtn" data-i18n="nav.saveCurrent" data-i18n-title="nav.saveCurrent.title"></button>
+      <button class="btn btn-sm btn-outline-danger" id="deleteProfileBtn" data-i18n="nav.delete"></button>
+
+      <select class="form-select form-select-sm w-auto ms-2" id="langSelect" style="min-width:5.5rem">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
     </div>
   </div>
 </nav>
@@ -44,12 +49,12 @@
 <div class="bg-white border-bottom">
   <div class="container-fluid py-2 d-flex flex-wrap align-items-center gap-3 small">
     <span id="statsLine" class="text-muted"></span>
-    <span class="token-pill badge bg-dark-subtle text-dark-emphasis" id="tokenPill" title="有効化中スキルの name + description は常にコンテキストに載ります（概算）"></span>
+    <span class="token-pill badge bg-dark-subtle text-dark-emphasis" id="tokenPill" data-i18n-title="bar.tokens.title"></span>
     <button class="btn btn-sm btn-outline-warning py-0 d-none" id="doctorBtn">診断結果あり</button>
     <div class="ms-auto d-flex gap-2">
-      <button class="btn btn-sm btn-outline-secondary py-0" id="newSkillBtn">＋ 新規スキル</button>
-      <button class="btn btn-sm btn-outline-secondary py-0" id="iconsBtn">アイコン設定</button>
-      <button class="btn btn-sm btn-outline-secondary py-0" id="doctorOpenBtn">診断</button>
+      <button class="btn btn-sm btn-outline-secondary py-0" id="newSkillBtn" data-i18n="bar.newSkill"></button>
+      <button class="btn btn-sm btn-outline-secondary py-0" id="iconsBtn" data-i18n="bar.icons"></button>
+      <button class="btn btn-sm btn-outline-secondary py-0" id="doctorOpenBtn" data-i18n="bar.doctor"></button>
     </div>
   </div>
 </div>
@@ -58,59 +63,53 @@
 
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span>スキルソース</span>
-      <button class="btn btn-sm btn-outline-secondary" id="rescanBtn">再スキャン</button>
+      <span data-i18n="sources.title"></span>
+      <button class="btn btn-sm btn-outline-secondary" id="rescanBtn" data-i18n="sources.rescan"></button>
     </div>
     <div class="card-body">
       <div id="sourceList" class="mb-3"></div>
       <form id="addSourceForm" class="row g-2">
         <div class="col-sm-6">
-          <input type="text" class="form-control form-control-sm" id="sourcePath" placeholder="~/repos/my-skills/skills など、絶対パスか ~ 展開可">
+          <input type="text" class="form-control form-control-sm" id="sourcePath" data-i18n-placeholder="sources.path.placeholder">
         </div>
         <div class="col-sm-3">
-          <input type="text" class="form-control form-control-sm" id="sourceLabel" placeholder="ラベル（省略可）">
+          <input type="text" class="form-control form-control-sm" id="sourceLabel" data-i18n-placeholder="sources.label.placeholder">
         </div>
         <div class="col-sm-3">
-          <button type="submit" class="btn btn-sm btn-primary w-100">ソースを追加</button>
+          <button type="submit" class="btn btn-sm btn-primary w-100" data-i18n="sources.add"></button>
         </div>
       </form>
     </div>
   </div>
 
   <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-    <input type="search" class="form-control" style="max-width:320px" id="searchBox" placeholder="名前・説明で検索...">
+    <input type="search" class="form-control" style="max-width:320px" id="searchBox" data-i18n-placeholder="filter.search">
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="fullTextFilter">
-      <label class="form-check-label small" for="fullTextFilter">本文も検索</label>
+      <label class="form-check-label small" for="fullTextFilter" data-i18n="filter.fullText"></label>
     </div>
-    <select class="form-select" style="max-width:200px" id="categoryFilter">
-      <option value="">すべてのカテゴリ</option>
-    </select>
-    <select class="form-select" style="max-width:200px" id="sourceFilter">
-      <option value="">すべてのソース</option>
-    </select>
+    <select class="form-select" style="max-width:200px" id="categoryFilter"></select>
+    <select class="form-select" style="max-width:200px" id="sourceFilter"></select>
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="issuesOnlyFilter">
-      <label class="form-check-label small" for="issuesOnlyFilter">要確認のみ</label>
+      <label class="form-check-label small" for="issuesOnlyFilter" data-i18n="filter.issuesOnly"></label>
     </div>
     <div class="form-check form-switch ms-auto">
       <input class="form-check-input" type="checkbox" id="enabledOnlyFilter">
-      <label class="form-check-label" for="enabledOnlyFilter">有効化済みのみ</label>
+      <label class="form-check-label" for="enabledOnlyFilter" data-i18n="filter.enabledOnly"></label>
     </div>
   </div>
 
   <div id="skillContainer"></div>
-  <div id="emptyState" class="text-center text-muted py-5 d-none">
-    スキルが見つかりません。上でソースを追加してください。
-  </div>
+  <div id="emptyState" class="text-center text-muted py-5 d-none" data-i18n="empty.state"></div>
 </div>
 
 <div id="exportBar" class="p-2 d-none">
   <div class="container-fluid d-flex align-items-center gap-3">
-    <span><strong id="selectedCount">0</strong> 件選択中 <span class="text-muted" id="selectedTokens"></span></span>
-    <button class="btn btn-success btn-sm" id="exportBtn">選択したスキルをエクスポート</button>
-    <button class="btn btn-outline-primary btn-sm" id="profileFromSelectionBtn">選択からプロファイル作成</button>
-    <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn">選択解除</button>
+    <span><span id="selectedCount"></span> <span class="text-muted" id="selectedTokens"></span></span>
+    <button class="btn btn-success btn-sm" id="exportBtn" data-i18n="export.run"></button>
+    <button class="btn btn-outline-primary btn-sm" id="profileFromSelectionBtn" data-i18n="export.toProfile"></button>
+    <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn" data-i18n="export.clear"></button>
   </div>
 </div>
 
@@ -119,31 +118,31 @@
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">スキルを編集</h5>
+        <h5 class="modal-title" data-i18n="edit.title"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-2 text-muted small" id="editPath"></div>
         <div id="editIssues" class="mb-2"></div>
         <ul class="nav nav-tabs mb-3">
-          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabEdit" type="button">SKILL.md</button></li>
-          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabFiles" type="button">同梱ファイル <span class="badge bg-secondary" id="fileCount">0</span></button></li>
+          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabEdit" type="button" data-i18n="edit.tab.skill"></button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabFiles" type="button"><span data-i18n="edit.tab.files"></span> <span class="badge bg-secondary" id="fileCount">0</span></button></li>
         </ul>
         <div class="tab-content">
           <div class="tab-pane fade show active" id="tabEdit">
             <div class="mb-3">
-              <label class="form-label">name</label>
+              <label class="form-label" data-i18n="edit.name"></label>
               <input type="text" class="form-control" id="editName">
             </div>
             <div class="mb-3">
               <label class="form-label d-flex justify-content-between">
-                <span>description</span>
+                <span data-i18n="edit.description"></span>
                 <span class="text-muted small" id="descCounter"></span>
               </label>
               <textarea class="form-control" id="editDescription" rows="3"></textarea>
             </div>
             <div class="mb-3">
-              <label class="form-label">本文（Markdown）</label>
+              <label class="form-label" data-i18n="edit.body"></label>
               <textarea class="form-control font-monospace" id="editBody" rows="16"></textarea>
             </div>
           </div>
@@ -153,7 +152,7 @@
                 <div class="list-group list-group-flush" id="fileList"></div>
               </div>
               <div class="col-md-8">
-                <pre class="file-preview" id="filePreview">左のファイルを選択すると内容を表示します。</pre>
+                <pre class="file-preview" id="filePreview" data-i18n="edit.filePlaceholder"></pre>
               </div>
             </div>
           </div>
@@ -161,9 +160,9 @@
         <div class="alert alert-info small mt-2" id="editSavedMsg" style="display:none"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary me-auto" id="duplicateBtn">複製</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-        <button type="button" class="btn btn-primary" id="saveEditBtn">保存（自動バックアップ）</button>
+        <button type="button" class="btn btn-outline-secondary me-auto" id="duplicateBtn" data-i18n="edit.duplicate"></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="edit.close"></button>
+        <button type="button" class="btn btn-primary" id="saveEditBtn" data-i18n="edit.save"></button>
       </div>
     </div>
   </div>
@@ -174,30 +173,30 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">新規スキルを作成</h5>
+        <h5 class="modal-title" data-i18n="new.title"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label">作成先ソース</label>
+          <label class="form-label" data-i18n="new.source"></label>
           <select class="form-select" id="newSkillSource"></select>
         </div>
         <div class="mb-3">
-          <label class="form-label">カテゴリ（フォルダ。空なら直下）</label>
+          <label class="form-label" data-i18n="new.category"></label>
           <input type="text" class="form-control" id="newSkillCategory" placeholder="dev">
         </div>
         <div class="mb-3">
-          <label class="form-label">name</label>
+          <label class="form-label" data-i18n="edit.name"></label>
           <input type="text" class="form-control" id="newSkillName" placeholder="my-skill">
         </div>
         <div class="mb-3">
-          <label class="form-label">description</label>
-          <textarea class="form-control" id="newSkillDescription" rows="3" placeholder="何をするスキルか＋いつ使うか"></textarea>
+          <label class="form-label" data-i18n="edit.description"></label>
+          <textarea class="form-control" id="newSkillDescription" rows="3" data-i18n-placeholder="new.description.placeholder"></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-        <button type="button" class="btn btn-primary" id="createSkillBtn">作成</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="edit.close"></button>
+        <button type="button" class="btn btn-primary" id="createSkillBtn" data-i18n="new.create"></button>
       </div>
     </div>
   </div>
@@ -208,20 +207,16 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">有効化先（ターゲット）</h5>
+        <h5 class="modal-title" data-i18n="targets.title"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted">
-          ユーザーグローバル（<code>~/.claude/skills</code>）に加えて、プロジェクトごとの
-          <code>&lt;project&gt;/.claude/skills</code> を有効化先として登録できます。プロジェクトのルートを入力すれば
-          <code>.claude/skills</code> を補完します。
-        </p>
+        <p class="small text-muted" data-i18n-html="targets.help"></p>
         <div id="targetList" class="mb-3"></div>
         <form id="addTargetForm" class="row g-2">
-          <div class="col-sm-6"><input type="text" class="form-control form-control-sm" id="targetPath" placeholder="~/repos/my-project"></div>
-          <div class="col-sm-3"><input type="text" class="form-control form-control-sm" id="targetLabel" placeholder="ラベル（省略可）"></div>
-          <div class="col-sm-3"><button class="btn btn-sm btn-primary w-100" type="submit">追加</button></div>
+          <div class="col-sm-6"><input type="text" class="form-control form-control-sm" id="targetPath" data-i18n-placeholder="targets.path.placeholder"></div>
+          <div class="col-sm-3"><input type="text" class="form-control form-control-sm" id="targetLabel" data-i18n-placeholder="targets.label.placeholder"></div>
+          <div class="col-sm-3"><button class="btn btn-sm btn-primary w-100" type="submit" data-i18n="targets.add"></button></div>
         </form>
       </div>
     </div>
@@ -233,7 +228,7 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">診断</h5>
+        <h5 class="modal-title" data-i18n="doctor.title"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body"><div id="doctorList"></div></div>
@@ -246,22 +241,23 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">カテゴリのアイコン</h5>
+        <h5 class="modal-title" data-i18n="icons.title"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted">カテゴリ名 → 絵文字。空欄にすると既定に戻ります（SKILL.md の <code>icon:</code> が最優先）。</p>
+        <p class="small text-muted" data-i18n-html="icons.help"></p>
         <div id="iconRows"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-        <button type="button" class="btn btn-primary" id="saveIconsBtn">保存</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="edit.close"></button>
+        <button type="button" class="btn btn-primary" id="saveIconsBtn" data-i18n="icons.save"></button>
       </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

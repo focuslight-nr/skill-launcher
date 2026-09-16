@@ -6,11 +6,15 @@ A local-only launcher / manager for Claude Skills (`SKILL.md`): collect them fro
 
 > **This is a local-only tool.** The server binds to `127.0.0.1` and has no authentication. It reads and writes local files (editing `SKILL.md`, creating symlinks under `.claude/skills`), so **do not expose it on a public network or a shared host**.
 
-## Screenshot
+## Demo
 
-![skill-launcher UI](docs/screenshot.png)
+![skill-launcher demo](docs/demo.gif)
 
-*(A demo instance with sample skills — not real data.)*
+Toggling a skill on, applying a saved profile, opening a skill with frontmatter warnings, and switching the UI to English.
+
+![skill-launcher UI](docs/screenshot-en.png)
+
+*(Both show a demo instance with sample skills — not real data.)*
 
 ## What it does
 
@@ -23,7 +27,8 @@ A local-only launcher / manager for Claude Skills (`SKILL.md`): collect them fro
 7. **Frontmatter lint** — warns about a missing or over-long `description`, a `name` that is not kebab-case or does not match its folder, an empty body, and so on, both as a card badge and in the editor.
 8. **Edit, create, duplicate** — edit `SKILL.md` in the UI (always backed up first, and refused if the file changed since you opened it), browse bundled files (`references/`, `scripts/`), scaffold a new skill from a template, or duplicate an existing one.
 9. **Doctor** — finds broken links, missing sources, stale copy-mode activations and unmanaged entries, with one-click relink / forget.
-10. **Export to a system prompt** — bundle the selected skills into a single Markdown file, for environments without a skills mechanism or for API use.
+10. **Japanese / English UI** — switch from the navbar; the initial language follows the browser and is then remembered. Lint and doctor messages switch too.
+11. **Export to a system prompt** — bundle the selected skills into a single Markdown file, for environments without a skills mechanism or for API use.
 
 ## Running it
 

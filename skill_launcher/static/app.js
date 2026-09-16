@@ -9,9 +9,11 @@
     editingMtime: null,
     fullTextIds: null,   // ids matched by the last server-side body search
     doctorFindings: [],
+    stats: null,
   };
 
   const el = (id) => document.getElementById(id);
+  const t = (key, params) => window.I18N.t(key, params);
   const LS_TARGET = "skill-launcher.target";
 
   function currentTarget() {
@@ -56,26 +58,31 @@
     const saved = localStorage.getItem(LS_TARGET);
     const keep = sel.value || saved || "default";
     sel.innerHTML = state.targets
-      .map(t => `<option value="${t.id}">${escapeHtml(t.label)}${t.exists ? "" : " (未作成)"}</option>`)
+      .map(x => `<option value="${x.id}">${escapeHtml(targetLabel(x))}${x.exists ? "" : " " + t("targets.notCreated")}</option>`)
       .join("");
-    sel.value = state.targets.some(t => t.id === keep) ? keep : "default";
+    sel.value = state.targets.some(x => x.id === keep) ? keep : "default";
     renderTargetList();
+  }
+
+  /** The built-in target is labelled by the UI so it follows the chosen language. */
+  function targetLabel(target) {
+    return target.builtin ? t("targets.global") : target.label;
   }
 
   function renderTargetList() {
     const box = el("targetList");
-    box.innerHTML = state.targets.map(t => `
+    box.innerHTML = state.targets.map(x => `
       <div class="source-row border rounded p-2 mb-2">
         <div class="flex-grow-1">
-          <div><strong>${escapeHtml(t.label)}</strong> ${t.builtin ? '<span class="badge bg-secondary">既定</span>' : ""}</div>
-          <div class="text-muted small">${escapeHtml(t.path)}</div>
+          <div><strong>${escapeHtml(targetLabel(x))}</strong> ${x.builtin ? `<span class="badge bg-secondary">${t("targets.builtin")}</span>` : ""}</div>
+          <div class="text-muted small">${escapeHtml(x.path)}</div>
         </div>
-        ${t.builtin ? "" : `<button class="btn btn-sm btn-outline-danger" data-remove-target="${t.id}">削除</button>`}
+        ${x.builtin ? "" : `<button class="btn btn-sm btn-outline-danger" data-remove-target="${x.id}">${t("sources.remove")}</button>`}
       </div>
     `).join("");
     box.querySelectorAll("[data-remove-target]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("この有効化先の登録を解除しますか？\n（登録が外れるだけで、既に作成済みのリンクは残ります）")) return;
+        if (!confirm(t("targets.removeConfirm"))) return;
         await api(`/api/targets/${btn.dataset.removeTarget}`, { method: "DELETE" });
         await loadTargets();
         await refreshAll();
@@ -90,7 +97,7 @@
     renderSources();
     const sel = el("sourceFilter");
     const current = sel.value;
-    sel.innerHTML = '<option value="">すべてのソース</option>' +
+    sel.innerHTML = `<option value="">${t("filter.allSources")}</option>` +
       state.sources.map(s => `<option value="${s.id}">${escapeHtml(s.label)} (${s.skill_count})</option>`).join("");
     sel.value = current;
     el("newSkillSource").innerHTML =
@@ -100,22 +107,23 @@
   function renderSources() {
     const box = el("sourceList");
     if (state.sources.length === 0) {
-      box.innerHTML = '<div class="text-muted small">まだソースが登録されていません。</div>';
+      box.innerHTML = `<div class="text-muted small">${t("sources.empty")}</div>`;
       return;
     }
     box.innerHTML = state.sources.map(s => `
       <div class="source-row border rounded p-2 mb-2">
         <span class="badge ${s.exists ? "bg-secondary" : "bg-danger"}">${s.skill_count}</span>
         <div class="flex-grow-1">
-          <div><strong>${escapeHtml(s.label)}</strong> ${s.exists ? "" : '<span class="text-danger small">(パスが見つかりません)</span>'}</div>
+          <div><strong>${escapeHtml(s.label)}</strong> ${s.exists ? "" : `<span class="text-danger small">${t("sources.missing")}</span>`}</div>
           <div class="text-muted small">${escapeHtml(s.path)}</div>
         </div>
-        <button class="btn btn-sm btn-outline-danger" data-remove-source="${s.id}">削除</button>
+        <button class="btn btn-sm btn-outline-danger" data-remove-source="${s.id}">${t("sources.remove")}</button>
       </div>
     `).join("");
     box.querySelectorAll("[data-remove-source]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm(`ソース「${btn.closest(".source-row").querySelector("strong").textContent}」の登録を解除しますか？\n(スキャン対象から外れるだけで、既に有効化中のスキルはそのまま残ります)`)) return;
+        const label = btn.closest(".source-row").querySelector("strong").textContent;
+        if (!confirm(t("sources.removeConfirm", { label }))) return;
         await api(`/api/sources/${btn.dataset.removeSource}`, { method: "DELETE" });
         await refreshAll();
       });
@@ -131,7 +139,7 @@
     const catSel = el("categoryFilter");
     const currentCat = catSel.value;
     const cats = [...new Set(state.skills.map(s => s.category))].sort();
-    catSel.innerHTML = '<option value="">すべてのカテゴリ</option>' +
+    catSel.innerHTML = `<option value="">${t("filter.allCategories")}</option>` +
       cats.map(c => `<option value="${c}">${escapeHtml(c)}</option>`).join("");
     catSel.value = currentCat;
     renderSkills();
@@ -139,14 +147,17 @@
 
   async function loadStats() {
     const stats = await api(`/api/stats?target=${encodeURIComponent(currentTarget())}`);
-    const t = state.targets.find(x => x.id === currentTarget());
-    el("statsLine").textContent =
-      `${t ? t.path : ""} — スキル ${fmtNum(stats.total_skills)}件 / 有効化 ${fmtNum(stats.enabled_skills)}件`;
-    el("tokenPill").textContent =
-      `常時コンテキスト 約${fmtNum(stats.estimated_tokens)}トークン（説明 ${fmtNum(stats.description_chars)}文字）`;
-    const errors = stats.issue_counts.error + stats.issue_counts.warn;
-    el("doctorBtn").classList.toggle("d-none", errors === 0 && state.doctorFindings.length === 0);
-    el("doctorBtn").textContent = `要確認 ${errors}件`;
+    state.stats = stats;
+    const target = state.targets.find(x => x.id === currentTarget());
+    el("statsLine").textContent = t("bar.stats", {
+      path: target ? target.path : "",
+      total: fmtNum(stats.total_skills),
+      enabled: fmtNum(stats.enabled_skills),
+    });
+    el("tokenPill").textContent = t("bar.tokens", {
+      tokens: fmtNum(stats.estimated_tokens),
+      chars: fmtNum(stats.description_chars),
+    });
   }
 
   function worstIssue(s) {
@@ -178,7 +189,7 @@
     el("emptyState").classList.toggle("d-none", state.skills.length !== 0);
 
     if (filtered.length === 0) {
-      container.innerHTML = state.skills.length === 0 ? "" : '<div class="text-muted py-4">条件に一致するスキルがありません。</div>';
+      container.innerHTML = state.skills.length === 0 ? "" : `<div class="text-muted py-4">${t("filter.noMatch")}</div>`;
       updateExportBar();
       return;
     }
@@ -190,9 +201,12 @@
       const group = byCategory[cat];
       const icon = group[0].icon;
       const tokens = group.filter(s => s.enabled).reduce((n, s) => n + s.tokens, 0);
+      const count = tokens
+        ? t("category.countEnabled", { count: group.length, tokens: fmtNum(tokens) })
+        : t("category.count", { count: group.length });
       return `
         <div class="category-heading"><h5>${icon} ${escapeHtml(cat)}
-          <span class="text-muted small">(${group.length}${tokens ? ` / 有効分 約${fmtNum(tokens)}tok` : ""})</span></h5></div>
+          <span class="text-muted small">${count}</span></h5></div>
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">${group.map(renderCard).join("")}</div>
       `;
     }).join("");
@@ -212,15 +226,17 @@
   function renderCard(s) {
     const checked = state.selected.has(s.id) ? "checked" : "";
     const enabledBadge = s.enabled
-      ? `<span class="badge bg-success">有効 (${escapeHtml(s.target_name)}${s.kind === "copy" ? " / コピー" : ""})</span>`
-      : '<span class="badge bg-secondary">無効</span>';
+      ? `<span class="badge bg-success">${escapeHtml(
+          t(s.kind === "copy" ? "card.enabled.copy" : "card.enabled", { name: s.target_name })
+        )}</span>`
+      : `<span class="badge bg-secondary">${t("card.disabled")}</span>`;
     const issue = worstIssue(s);
     const issueDot = issue
       ? `<span class="issue-dot badge ${issue.level === "error" ? "bg-danger" : issue.level === "warn" ? "bg-warning text-dark" : "bg-light text-muted border"}"
-              title="${escapeHtml(s.issues.map(i => i.message).join("\n"))}">${issue.level === "info" ? "i" : "!"} ${s.issues.length}</span>`
+              title="${escapeHtml(s.issues.map(issueText).join("\n"))}">${issue.level === "info" ? "i" : "!"} ${s.issues.length}</span>`
       : "";
     const tags = (s.tags || []).slice(0, 4)
-      .map(t => `<span class="badge bg-light text-dark border badge-source">#${escapeHtml(t)}</span>`).join(" ");
+      .map(tag => `<span class="badge bg-light text-dark border badge-source">#${escapeHtml(tag)}</span>`).join(" ");
     return `
       <div class="col">
         <div class="card skill-card h-100">
@@ -231,11 +247,11 @@
                 <div>
                   <div class="fw-semibold">${escapeHtml(s.name)} ${issueDot}</div>
                   <span class="badge bg-light text-dark border badge-source">${escapeHtml(s.source_label)}</span>
-                  <span class="badge bg-light text-dark border badge-source" title="有効化した場合の常時コスト（概算）">約${fmtNum(s.tokens)}tok</span>
+                  <span class="badge bg-light text-dark border badge-source" title="${t("card.tokens.title")}">${t("card.tokens", { tokens: fmtNum(s.tokens) })}</span>
                   ${tags}
                 </div>
               </div>
-              <input class="form-check-input mt-1" type="checkbox" data-select-id="${s.id}" ${checked} title="エクスポート/プロファイル対象に選択">
+              <input class="form-check-input mt-1" type="checkbox" data-select-id="${s.id}" ${checked} title="${t("card.select.title")}">
             </div>
             <p class="small text-muted mt-2 mb-2" style="max-height:4.5rem;overflow:auto">${escapeHtml(s.description)}</p>
             <div class="d-flex justify-content-between align-items-center">
@@ -243,7 +259,7 @@
                 <input class="form-check-input" type="checkbox" role="switch" data-toggle-id="${s.id}" ${s.enabled ? "checked" : ""}>
                 <label class="form-check-label small">${enabledBadge}</label>
               </div>
-              <button class="btn btn-sm btn-outline-primary" data-edit-id="${s.id}">編集</button>
+              <button class="btn btn-sm btn-outline-primary" data-edit-id="${s.id}">${t("card.edit")}</button>
             </div>
           </div>
         </div>
@@ -261,28 +277,28 @@
         await api(`/api/skills/${id}/enable`, { method: "POST", body: JSON.stringify({ target }) });
       } catch (e) {
         if (e.status === 409) {
-          const alt = prompt(`名前が衝突しました:\n${e.message}\n\n別の名前で有効化しますか？（空でキャンセル）`, skill.name + "-2");
+          const alt = prompt(t("toggle.conflict", { message: e.message }), skill.name + "-2");
           if (alt) {
             try {
               await api(`/api/skills/${id}/enable`, { method: "POST", body: JSON.stringify({ target, target_name: alt }) });
             } catch (e2) {
-              alert("有効化に失敗しました: " + e2.message);
+              alert(t("toggle.enableFailed", { message: e2.message }));
             }
           }
         } else {
-          alert("有効化に失敗しました: " + e.message);
+          alert(t("toggle.enableFailed", { message: e.message }));
         }
       }
     } else {
-      const t = state.targets.find(x => x.id === target);
-      if (!confirm(`「${skill.name}」を無効化しますか？\n${t ? t.path : ""} から削除されます（元のソースファイルは削除されません）。`)) {
+      const targetInfo = state.targets.find(x => x.id === target);
+      if (!confirm(t("toggle.disableConfirm", { name: skill.name, path: targetInfo ? targetInfo.path : "" }))) {
         input.checked = true;
         return;
       }
       try {
         await api(`/api/skills/${id}/disable`, { method: "POST", body: JSON.stringify({ target, confirm: true }) });
       } catch (e) {
-        alert("無効化に失敗しました: " + e.message);
+        alert(t("toggle.disableFailed", { message: e.message }));
       }
     }
     await loadSkills();
@@ -291,9 +307,9 @@
 
   function updateExportBar() {
     const bar = el("exportBar");
-    el("selectedCount").textContent = state.selected.size;
+    el("selectedCount").textContent = t("export.selected", { count: state.selected.size });
     const tokens = state.skills.filter(s => state.selected.has(s.id)).reduce((n, s) => n + s.tokens, 0);
-    el("selectedTokens").textContent = tokens ? `（有効化すると常時 約${fmtNum(tokens)}トークン）` : "";
+    el("selectedTokens").textContent = tokens ? t("export.selectedTokens", { tokens: fmtNum(tokens) }) : "";
     bar.classList.toggle("d-none", state.selected.size === 0);
   }
 
@@ -303,28 +319,31 @@
     state.profiles = await api("/api/profiles");
     const sel = el("profileSelect");
     const current = sel.value;
-    sel.innerHTML = '<option value="">（選択）</option>' + state.profiles.map(p =>
-      `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)} — ${p.count}件 / 約${fmtNum(p.estimated_tokens)}tok${p.missing ? ` / 不明${p.missing}` : ""}</option>`
-    ).join("");
+    sel.innerHTML = `<option value="">${t("nav.profile.pick")}</option>` + state.profiles.map(p => {
+      const label = t(p.missing ? "profile.optionMissing" : "profile.option", {
+        name: p.name, count: p.count, tokens: fmtNum(p.estimated_tokens), missing: p.missing,
+      });
+      return `<option value="${escapeHtml(p.name)}">${escapeHtml(label)}</option>`;
+    }).join("");
     sel.value = current;
   }
 
   async function applyProfile() {
     const name = el("profileSelect").value;
-    if (!name) { alert("プロファイルを選択してください。"); return; }
-    const t = state.targets.find(x => x.id === currentTarget());
-    if (!confirm(`プロファイル「${name}」を ${t ? t.path : ""} に適用します。\nこのプロファイルに含まれないスキルは無効化されます（手動配置のスキルは対象外）。`)) return;
+    if (!name) { alert(t("profile.pickFirst")); return; }
+    const targetInfo = state.targets.find(x => x.id === currentTarget());
+    if (!confirm(t("profile.applyConfirm", { name, path: targetInfo ? targetInfo.path : "" }))) return;
     const res = await api(`/api/profiles/${encodeURIComponent(name)}/apply`, {
       method: "POST", body: JSON.stringify({ target: currentTarget() }),
     });
     await refreshAll();
-    const msg = [`有効化: ${res.enabled.length}件`, `無効化: ${res.disabled.length}件`];
-    if (res.errors.length) msg.push("エラー:\n" + res.errors.join("\n"));
-    alert(msg.join(" / "));
+    const msg = [t("profile.applyResult", { enabled: res.enabled.length, disabled: res.disabled.length })];
+    if (res.errors.length) msg.push(t("profile.applyErrors", { errors: res.errors.join("\n") }));
+    alert(msg.join("\n"));
   }
 
   async function saveProfile(ids) {
-    const name = prompt("プロファイル名", el("profileSelect").value || "");
+    const name = prompt(t("profile.namePrompt"), el("profileSelect").value || "");
     if (!name) return;
     await api("/api/profiles", {
       method: "POST",
@@ -337,7 +356,7 @@
   async function deleteProfile() {
     const name = el("profileSelect").value;
     if (!name) return;
-    if (!confirm(`プロファイル「${name}」を削除しますか？（有効化状態は変わりません）`)) return;
+    if (!confirm(t("profile.deleteConfirm", { name }))) return;
     await api(`/api/profiles/${encodeURIComponent(name)}`, { method: "DELETE" });
     await loadProfiles();
   }
@@ -348,25 +367,23 @@
     state.doctorFindings = await api("/api/doctor");
     const actionable = state.doctorFindings.filter(f => f.level !== "info").length;
     const btn = el("doctorBtn");
-    if (actionable > 0) {
-      btn.classList.remove("d-none");
-      btn.textContent = `診断: 要対応 ${actionable}件`;
-    }
+    btn.classList.toggle("d-none", actionable === 0);
+    btn.textContent = t("bar.doctorFound", { count: actionable });
   }
 
   function renderDoctor() {
     const box = el("doctorList");
     if (state.doctorFindings.length === 0) {
-      box.innerHTML = '<div class="text-success">問題は見つかりませんでした。</div>';
+      box.innerHTML = `<div class="text-success">${t("doctor.clean")}</div>`;
       return;
     }
     box.innerHTML = state.doctorFindings.map((f, idx) => {
       const cls = f.level === "error" ? "danger" : f.level === "warn" ? "warning" : "secondary";
       const actions = f.code === "link_missing" || f.code === "copy_stale"
-        ? `<button class="btn btn-sm btn-outline-primary" data-repair="${idx}" data-action="relink">再リンク</button>`
+        ? `<button class="btn btn-sm btn-outline-primary" data-repair="${idx}" data-action="relink">${t("doctor.relink")}</button>`
         : "";
       const forget = f.code === "source_missing" || f.code === "link_missing"
-        ? `<button class="btn btn-sm btn-outline-secondary" data-repair="${idx}" data-action="forget">管理から外す</button>`
+        ? `<button class="btn btn-sm btn-outline-secondary" data-repair="${idx}" data-action="forget">${t("doctor.forget")}</button>`
         : "";
       return `
         <div class="border rounded p-2 mb-2">
@@ -374,7 +391,7 @@
             <div>
               <span class="badge bg-${cls}">${f.code}</span>
               <strong class="ms-1">${escapeHtml(f.target_name)}</strong>
-              <div class="small">${escapeHtml(f.message)}</div>
+              <div class="small">${escapeHtml(t(`doctor.${f.code}`))}</div>
               <div class="text-muted small">${escapeHtml(f.target_dir)}${f.source ? " ← " + escapeHtml(f.source) : ""}</div>
             </div>
             <div class="d-flex gap-1">${actions}${forget}</div>
@@ -391,7 +408,7 @@
             body: JSON.stringify({ target_dir: f.target_dir, target_name: f.target_name, action: btn.dataset.action }),
           });
         } catch (e) {
-          alert("修復に失敗しました: " + e.message);
+          alert(t("doctor.repairFailed", { message: e.message }));
         }
         await loadDoctor();
         renderDoctor();
@@ -402,19 +419,24 @@
 
   // --- edit / create --------------------------------------------------------
 
+  /** Lint issues arrive as a code plus params so they can be shown in either language. */
+  function issueText(issue) {
+    return t(`lint.${issue.code}`, issue.params || {});
+  }
+
   function renderIssues(issues) {
     const box = el("editIssues");
     if (!issues || issues.length === 0) { box.innerHTML = ""; return; }
     box.innerHTML = issues.map(i => {
       const cls = i.level === "error" ? "danger" : i.level === "warn" ? "warning" : "secondary";
-      return `<div class="alert alert-${cls} py-1 px-2 small mb-1">${escapeHtml(i.message)}</div>`;
+      return `<div class="alert alert-${cls} py-1 px-2 small mb-1">${escapeHtml(issueText(i))}</div>`;
     }).join("");
   }
 
   function updateDescCounter() {
     const len = el("editDescription").value.length;
     const counter = el("descCounter");
-    counter.textContent = `${len} / 1024 文字`;
+    counter.textContent = t("edit.descCounter", { length: len });
     counter.className = len > 1024 ? "text-danger small" : "text-muted small";
   }
 
@@ -435,7 +457,7 @@
 
   function renderFileList(id, files) {
     el("fileCount").textContent = files.length;
-    el("filePreview").textContent = "左のファイルを選択すると内容を表示します。";
+    el("filePreview").textContent = t("edit.filePlaceholder");
     el("fileList").innerHTML = files.map(f => `
       <button type="button" class="list-group-item list-group-item-action small" data-file="${escapeHtml(f.rel)}">
         ${escapeHtml(f.rel)} <span class="text-muted">(${fmtNum(f.size)}B)</span>
@@ -445,7 +467,7 @@
         const res = await api(`/api/skills/${id}/file?rel=${encodeURIComponent(btn.dataset.file)}`);
         el("filePreview").textContent = res.text !== null && res.text !== undefined
           ? res.text
-          : `（${res.reason === "binary" ? "バイナリ" : "サイズ超過"}のため表示できません）`;
+          : t(res.reason === "binary" ? "edit.fileBinary" : "edit.fileTooLarge");
       });
     });
   }
@@ -455,14 +477,14 @@
     const name = el("editName").value.trim();
     const description = el("editDescription").value.trim();
     const body = el("editBody").value;
-    if (!name) { alert("name は必須です"); return; }
+    if (!name) { alert(t("edit.nameRequired")); return; }
     try {
       const res = await api(`/api/skills/${id}`, {
         method: "PUT",
         body: JSON.stringify({ name, description, body, mtime: state.editingMtime }),
       });
       const msg = el("editSavedMsg");
-      msg.textContent = `保存しました。バックアップ: ${res.backup}`;
+      msg.textContent = t("edit.saved", { path: res.backup });
       msg.style.display = "block";
       const fresh = await api(`/api/skills/${id}`);
       state.editingMtime = fresh.mtime;
@@ -472,7 +494,7 @@
       if (e.status === 409) {
         alert(e.message);
       } else {
-        alert("保存に失敗しました: " + e.message);
+        alert(t("edit.saveFailed", { message: e.message }));
       }
     }
   }
@@ -480,14 +502,14 @@
   async function duplicateSkill() {
     const id = state.editingId;
     const current = el("editName").value.trim();
-    const name = prompt("複製後の名前（フォルダ名になります）", `${current}-copy`);
+    const name = prompt(t("edit.duplicatePrompt"), `${current}-copy`);
     if (!name) return;
     try {
       await api(`/api/skills/${id}/duplicate`, { method: "POST", body: JSON.stringify({ name }) });
       await refreshAll();
-      alert(`複製しました: ${name}`);
+      alert(t("edit.duplicated", { name }));
     } catch (e) {
-      alert("複製に失敗しました: " + e.message);
+      alert(t("edit.duplicateFailed", { message: e.message }));
     }
   }
 
@@ -498,7 +520,7 @@
       name: el("newSkillName").value.trim(),
       description: el("newSkillDescription").value.trim(),
     };
-    if (!payload.source_id || !payload.name) { alert("ソースと name は必須です"); return; }
+    if (!payload.source_id || !payload.name) { alert(t("new.required")); return; }
     try {
       const res = await api("/api/skills", { method: "POST", body: JSON.stringify(payload) });
       bootstrap.Modal.getInstance(el("newSkillModal")).hide();
@@ -507,7 +529,7 @@
       await refreshAll();
       openEditModal(res.id);
     } catch (e) {
-      alert("作成に失敗しました: " + e.message);
+      alert(t("new.failed", { message: e.message }));
     }
   }
 
@@ -578,7 +600,7 @@
         el("sourceLabel").value = "";
         await refreshAll(true);
       } catch (e) {
-        alert("ソースの追加に失敗しました: " + e.message);
+        alert(t("sources.addFailed", { message: e.message }));
       }
     });
 
@@ -593,7 +615,7 @@
         el("targetLabel").value = "";
         await loadTargets();
       } catch (e) {
-        alert("有効化先の追加に失敗しました: " + e.message);
+        alert(t("targets.addFailed", { message: e.message }));
       }
     });
 
@@ -646,7 +668,7 @@
       body: JSON.stringify({ ids }),
     });
     if (!res.ok) {
-      alert("エクスポートに失敗しました");
+      alert(t("export.failed"));
       return;
     }
     const blob = await res.blob();
@@ -660,8 +682,25 @@
     URL.revokeObjectURL(url);
   }
 
+  async function setLanguage(next) {
+    window.I18N.setLang(next);
+    el("langSelect").value = window.I18N.lang;
+    window.I18N.applyStatic();
+    await loadTargets();
+    await loadSources();
+    renderSources();
+    await loadSkills();
+    await loadProfiles();
+    await loadStats();
+    await loadDoctor();
+    renderDoctor();
+  }
+
   (async () => {
     wireStaticEvents();
+    el("langSelect").value = window.I18N.lang;
+    window.I18N.applyStatic();
+    el("langSelect").addEventListener("change", () => setLanguage(el("langSelect").value));
     await loadTargets();
     await refreshAll();
   })();

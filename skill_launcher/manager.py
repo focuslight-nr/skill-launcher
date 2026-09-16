@@ -126,6 +126,16 @@ def target_status(target_name: str, source_dir: Path, managed: dict, target_dir:
     return "available"
 
 
+def _link(source_dir: Path, target: Path) -> str:
+    """Symlink source_dir at target, falling back to a copy across volumes."""
+    try:
+        os.symlink(str(source_dir.resolve()), str(target), target_is_directory=True)
+        return "symlink"
+    except OSError:
+        shutil.copytree(str(source_dir), str(target))
+        return "copy"
+
+
 def enable_skill(skill: Skill, target_dir: Path, target_name: str | None = None) -> dict:
     config.ensure_dirs()
     target_dir = Path(target_dir).expanduser()
@@ -134,8 +144,17 @@ def enable_skill(skill: Skill, target_dir: Path, target_name: str | None = None)
     managed = managed_for(target_dir)
     name = sanitize_target_name(target_name or skill.name or skill.dir.name)
     status = target_status(name, skill.dir, managed, target_dir)
+    target = target_dir / name
 
     if status == "enabled":
+        # The manifest says this is enabled. If the link itself is gone (deleted
+        # by hand, or a target directory that was wiped), recreate it instead of
+        # reporting success for something that no longer exists.
+        if not target.exists() and not target.is_symlink():
+            kind = _link(skill.dir, target)
+            managed[name] = {**managed[name], "kind": kind}
+            set_managed_for(target_dir, managed)
+            return {"target_name": name, "kind": kind, "already": False, "restored": True}
         return {"target_name": name, "kind": managed[name]["kind"], "already": True}
     if status == "enabled_elsewhere":
         raise ManagerError(
@@ -149,13 +168,7 @@ def enable_skill(skill: Skill, target_dir: Path, target_name: str | None = None)
             code="conflict_external",
         )
 
-    target = target_dir / name
-    kind = "symlink"
-    try:
-        os.symlink(str(skill.dir.resolve()), str(target), target_is_directory=True)
-    except OSError:
-        kind = "copy"
-        shutil.copytree(str(skill.dir), str(target))
+    kind = _link(skill.dir, target)
 
     managed[name] = {
         "source": str(skill.dir.resolve()),
@@ -443,12 +456,7 @@ def repair(target_dir: Path, target_name: str, action: str) -> dict:
             link.unlink()
         elif link.is_dir():
             shutil.rmtree(link)
-        kind = "symlink"
-        try:
-            os.symlink(str(source.resolve()), str(link), target_is_directory=True)
-        except OSError:
-            kind = "copy"
-            shutil.copytree(str(source), str(link))
+        kind = _link(source, link)
         managed[target_name] = {**entry, "kind": kind}
         set_managed_for(target_dir, managed)
         return {"target_name": target_name, "action": "relink", "kind": kind}
