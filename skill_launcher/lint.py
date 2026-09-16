@@ -71,11 +71,15 @@ def lint_skill(frontmatter: dict, body: str, dir_name: str) -> list[Issue]:
         issues.append(Issue("error", "description がありません。Claude はこれを見て起動判断をします。"))
     else:
         if len(description) > MAX_DESCRIPTION_LEN:
-            issues.append(
-                Issue("error", f"description が長すぎます（{len(description)} 文字 / 上限 {MAX_DESCRIPTION_LEN}）。")
-            )
+            issues.append(Issue(
+                "error",
+                f"description が長すぎます（{len(description)} 文字 / 上限 {MAX_DESCRIPTION_LEN}）。",
+            ))
         elif len(description) < 20:
-            issues.append(Issue("warn", "description が短すぎます。何をするか＋いつ使うかを書くと起動精度が上がります。"))
+            issues.append(Issue(
+                "warn",
+                "description が短すぎます。何をするか＋いつ使うかを書くと起動精度が上がります。",
+            ))
 
     if not body.strip():
         issues.append(Issue("warn", "本文が空です。手順や参照情報が無いとスキルとして機能しません。"))

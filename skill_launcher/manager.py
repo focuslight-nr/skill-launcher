@@ -370,7 +370,17 @@ def diagnose(all_skills: list[Skill]) -> list[dict]:
     manifest = load_manifest()
     known_sources = {os.path.realpath(str(s.dir)) for s in all_skills}
 
-    for target_key, mapping in manifest["targets"].items():
+    # Every configured target is inspected, not just the ones the manifest
+    # already has entries for: a target with nothing enabled can still hold
+    # hand-placed skills worth reporting.
+    target_keys = list(manifest["targets"])
+    for t in list_targets():
+        key = _target_key(Path(t["path"]))
+        if key not in target_keys:
+            target_keys.append(key)
+
+    for target_key in target_keys:
+        mapping = manifest["targets"].get(target_key, {})
         target_dir = Path(target_key)
         for target_name, entry in sorted(mapping.items()):
             link = target_dir / target_name
@@ -454,13 +464,13 @@ TEMPLATE_BODY = """## いつ使うか
 
 ## 手順
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## 注意
 
-- 
+-
 """
 
 

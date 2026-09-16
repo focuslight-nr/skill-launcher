@@ -63,7 +63,7 @@ def _target_dir(request: web.Request, data: dict | None = None) -> Path:
     try:
         return manager.resolve_target(target_id)
     except manager.ManagerError as e:
-        raise web.HTTPBadRequest(text=str(e))
+        raise web.HTTPBadRequest(text=str(e)) from e
 
 
 @routes.get("/api/health")
@@ -282,7 +282,7 @@ async def get_skill_file(request: web.Request) -> web.Response:
     try:
         return web.json_response(manager.read_skill_file(skill, rel))
     except manager.ManagerError as e:
-        raise web.HTTPBadRequest(text=str(e))
+        raise web.HTTPBadRequest(text=str(e)) from e
 
 
 @routes.put("/api/skills/{skill_id}")
@@ -379,7 +379,7 @@ async def create_profile(request: web.Request) -> web.Response:
     try:
         entry = manager.save_profile(name, chosen, target_id)
     except manager.ManagerError as e:
-        raise web.HTTPBadRequest(text=str(e))
+        raise web.HTTPBadRequest(text=str(e)) from e
     return web.json_response({"name": name, **entry}, status=201)
 
 
@@ -404,7 +404,7 @@ async def delete_profile(request: web.Request) -> web.Response:
     try:
         manager.delete_profile(request.match_info["name"])
     except manager.ManagerError as e:
-        raise web.HTTPNotFound(text=str(e))
+        raise web.HTTPNotFound(text=str(e)) from e
     return web.json_response({"deleted": request.match_info["name"]})
 
 
