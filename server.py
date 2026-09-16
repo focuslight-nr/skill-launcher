@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from skill_launcher import config  # noqa: E402
 from skill_launcher.api import routes  # noqa: E402
+from skill_launcher.security import make_local_only_middleware  # noqa: E402
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
@@ -43,8 +44,8 @@ def find_free_port(host: str, preferred: int) -> int:
     raise RuntimeError(f"No free port found in range {preferred}-{preferred + PORT_SCAN_RANGE - 1}")
 
 
-def build_app() -> web.Application:
-    app = web.Application()
+def build_app(extra_hostnames: set[str] | None = None) -> web.Application:
+    app = web.Application(middlewares=[make_local_only_middleware(extra_hostnames)])
     app.add_routes(routes)
 
     async def index(request: web.Request) -> web.FileResponse:
@@ -71,7 +72,7 @@ def main() -> None:
     if port != args.port:
         print(f"[skill-launcher] port {args.port} busy, using {port} instead")
 
-    app = build_app()
+    app = build_app(extra_hostnames={args.host})
     print(f"[skill-launcher] serving on http://{args.host}:{port}")
     print(f"[skill-launcher] config dir: {config.CONFIG_DIR}")
     print(f"[skill-launcher] target dir: {config.CLAUDE_SKILLS_DIR}")

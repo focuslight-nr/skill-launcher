@@ -5,16 +5,25 @@ deliberate: entries this tool itself creates under ~/.claude/skills are
 symlinks pointing back into a source tree, so refusing to follow symlinks
 prevents a source scan from re-discovering (and duplicating) skills that
 were reached through one of our own activation links.
+
+Scan results are cached in memory (see `scan_all`): a single UI action can
+trigger several API calls, and every one of them used to re-walk every
+source tree from scratch.
 """
 from __future__ import annotations
 
 import base64
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+from . import config
+from .lint import Issue, lint_skill
+from .metrics import estimate_tokens
 
 FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
 
@@ -47,8 +56,25 @@ CATEGORY_ICONS = {
 DEFAULT_ICON = "\U0001F4C4"
 
 
-def icon_for(category: str) -> str:
-    return CATEGORY_ICONS.get(category.lower(), DEFAULT_ICON)
+def icon_for(category: str, frontmatter: dict | None = None) -> str:
+    """Resolve a skill's icon: frontmatter `icon` > user override > built-in map.
+
+    The built-in map only covers a handful of categories; `icons.json` in the
+    config dir lets you map your own category names to emoji without touching
+    the code.
+    """
+    if frontmatter:
+        icon = frontmatter.get("icon")
+        meta = frontmatter.get("metadata")
+        if not icon and isinstance(meta, dict):
+            icon = meta.get("icon")
+        if isinstance(icon, str) and icon.strip():
+            return icon.strip()
+    key = category.lower()
+    overrides = config.load_icons()
+    if key in overrides:
+        return str(overrides[key])
+    return CATEGORY_ICONS.get(key, DEFAULT_ICON)
 
 
 def make_id(skill_md_path: Path) -> str:
@@ -95,6 +121,14 @@ class Skill:
     source_label: str
     frontmatter: dict = field(default_factory=dict)
     body: str = ""
+    tags: list[str] = field(default_factory=list)
+    issues: list[Issue] = field(default_factory=list)
+    mtime: float = 0.0
+
+    @property
+    def context_tokens(self) -> int:
+        """Tokens this skill costs while enabled (name + description are always loaded)."""
+        return estimate_tokens(f"{self.name}: {self.description}")
 
 
 def sanitize_target_name(name: str) -> str:
@@ -139,14 +173,25 @@ def scan_source(source: dict) -> list[Skill]:
             description = " ".join(str(x) for x in description)
         description = str(description).strip()
 
+        # Category: an explicit frontmatter value wins, otherwise fall back to
+        # the first path segment below the source root.
+        category = str(fm.get("category") or "").strip()
+        if not category:
+            try:
+                rel_parts = skill_dir.relative_to(root).parts
+            except ValueError:
+                rel_parts = (skill_dir.name,)
+            category = rel_parts[0] if len(rel_parts) >= 2 else "uncategorized"
+
+        raw_tags = fm.get("tags") or []
+        if isinstance(raw_tags, str):
+            raw_tags = [raw_tags]
+        tags = [str(t).strip() for t in raw_tags if str(t).strip()] if isinstance(raw_tags, list) else []
+
         try:
-            rel_parts = skill_dir.relative_to(root).parts
-        except ValueError:
-            rel_parts = (skill_dir.name,)
-        if len(rel_parts) >= 2:
-            category = rel_parts[0]
-        else:
-            category = "uncategorized"
+            mtime = skill_path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
 
         results.append(
             Skill(
@@ -160,13 +205,49 @@ def scan_source(source: dict) -> list[Skill]:
                 source_label=source.get("label") or root.name,
                 frontmatter=fm,
                 body=body,
+                tags=tags,
+                issues=lint_skill(fm, body, skill_dir.name),
+                mtime=mtime,
             )
         )
     return results
 
 
-def scan_all(sources: list[dict]) -> list[Skill]:
+# --- scan cache -------------------------------------------------------------
+#
+# A single UI interaction fans out into several API calls (list, enable,
+# re-list), and each of them needs the parsed skill set. Walking every source
+# tree per call is wasteful once a source holds a few hundred skills, so we
+# keep the last result for a short while. Any write path calls invalidate().
+
+CACHE_TTL_SECONDS = 5.0
+_cache: dict | None = None
+
+
+def invalidate_cache() -> None:
+    global _cache
+    _cache = None
+
+
+def _cache_key(sources: list[dict]) -> tuple:
+    return tuple((s["id"], s["path"]) for s in sources)
+
+
+def scan_all(sources: list[dict], force: bool = False) -> list[Skill]:
+    """Scan every source, reusing a recent result unless `force` is set."""
+    global _cache
+    key = _cache_key(sources)
+    now = time.monotonic()
+    if (
+        not force
+        and _cache is not None
+        and _cache["key"] == key
+        and now - _cache["at"] < CACHE_TTL_SECONDS
+    ):
+        return _cache["skills"]
+
     out: list[Skill] = []
     for src in sources:
         out.extend(scan_source(src))
+    _cache = {"key": key, "at": now, "skills": out}
     return out
