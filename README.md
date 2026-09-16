@@ -2,9 +2,17 @@
 
 Claude Skills（`SKILL.md` 形式）を複数のリポ/フォルダから集めて一覧・有効化・編集・エクスポートするための、ローカル専用のスキルランチャー / マネージャです。
 
+> **ローカル専用ツールです。** サーバーは `127.0.0.1` のみにバインドし、認証機構はありません。ローカルファイルの読み書き（`SKILL.md` の編集、`~/.claude/skills` への symlink 作成）を行うため、**公開ネットワークや共有ホストに晒さないでください**。
+
+## スクリーンショット
+
+![skill-launcher の画面](docs/screenshot.png)
+
+*（サンプルスキルを登録したデモ環境の画面です）*
+
 ## できること
 
-1. **スキルソース管理** — 好きなフォルダ（例: `Claude-Red/Skills`、`~/.claude/skills` 自体）を「ソース」として登録し、再帰的に `SKILL.md` をスキャン。YAMLフロントマターの `name` / `description` と、フォルダ階層から推定したカテゴリを一覧表示します。
+1. **スキルソース管理** — 好きなフォルダ（例: スキルを格納しているローカルリポジトリ、`~/.claude/skills` 自体）を「ソース」として登録し、再帰的に `SKILL.md` をスキャン。YAMLフロントマターの `name` / `description` と、フォルダ階層から推定したカテゴリを一覧表示します。
 2. **アイコン＋カテゴリ表示のランチャーUI** — カテゴリごとにグルーピングし、絵文字アイコン・名前・説明を表示。検索ボックス・カテゴリ/ソースでの絞り込み・「有効化済みのみ」フィルタあり。
 3. **有効化トグル** — スイッチON/OFFで `~/.claude/skills/<name>` に symlink を作成／削除します（symlinkが張れない環境ではコピーに自動フォールバック）。**このツールが作った entry だけ**を管理対象とし、あなたが手で置いた既存スキルには一切触れません。
 4. **スキル編集** — 各スキルの `SKILL.md` をUI上で編集・保存。保存前に必ずタイムスタンプ付きバックアップを取ります。ソース側のファイルを直接更新するので、有効化中のsymlinkにも即座に反映されます。
@@ -13,7 +21,8 @@ Claude Skills（`SKILL.md` 形式）を複数のリポ/フォルダから集め�
 ## 起動方法
 
 ```bash
-cd /Users/esp/GitHub/skill-launcher
+git clone https://github.com/focuslight-nr/skill-launcher.git
+cd skill-launcher
 ./start.sh
 ```
 
@@ -22,7 +31,6 @@ cd /Users/esp/GitHub/skill-launcher
 直接Pythonで起動したい場合:
 
 ```bash
-cd /Users/esp/GitHub/skill-launcher
 .venv/bin/python server.py            # ポート指定: --port 9000
 ```
 
@@ -31,7 +39,7 @@ cd /Users/esp/GitHub/skill-launcher
 ## 使い方の流れ
 
 1. 画面上部の「スキルソース」でフォルダを登録します。例:
-   - `/Users/esp/GitHub/Claude-Red/Skills`
+   - `~/repos/my-skills/skills`（スキルを溜めているローカルリポジトリ）
    - `~/.claude/skills`（既存の手動配置スキルも一覧に出したい場合）
 2. 一覧からスキルを探し（検索・カテゴリ絞り込み可）、トグルスイッチでON/OFF。
 3. 「編集」ボタンで `name` / `description` / 本文を直接書き換え、保存（自動バックアップあり）。
@@ -48,6 +56,13 @@ cd /Users/esp/GitHub/skill-launcher
 └── backups/       # 編集のたびに作られる SKILL.md のバックアップ
 ```
 
+環境変数で置き場所を変えられます（お試し実行や別環境での検証に便利）:
+
+| 変数 | 既定値 | 用途 |
+| --- | --- | --- |
+| `SKILL_LAUNCHER_CONFIG_DIR` | `~/.config/skill-launcher` | 設定・マニフェスト・バックアップの保存先 |
+| `SKILL_LAUNCHER_TARGET_DIR` | `~/.claude/skills` | 有効化時に symlink を張る先 |
+
 ## 設計上の注意（管理領域の切り分け方）
 
 `~/.claude/skills/` を実際に見に行くと、既存スキルは **`~/.claude/skills/<name>/SKILL.md`** という1階層構造で置かれています。Claude Code / Claude.ai 側のスキル検出もこの1階層前提と考えられるため、`skill-launcher/` のようなサブフォルダに逃がして隔離する方式は「実際には読み込まれない」リスクがあり採用しませんでした。
@@ -60,7 +75,7 @@ cd /Users/esp/GitHub/skill-launcher
 - 別ソース由来で既に同名が有効化されている場合も同様に拒否し、別名を提案します。
 - symlink が張れない環境（別ボリューム間など）では自動的にディレクトリコピーにフォールバックします。この場合、UIに「コピー」であることを明示し、編集保存時にコピー先も自動で再同期します（symlinkほど即時ではありませんが、保存のたびに反映されます）。
 
-この設計により、あなたが既存で `~/.claude/skills` 直下に置いている `cost-aware-llm-pipeline` 等のスキルは、ソースとして登録しても一覧表示されるだけで、`managed.json` に無いため誤って無効化・削除されることはありません。
+この設計により、既存で `~/.claude/skills` 直下に手で置いてあるスキルは、ソースとして登録しても一覧表示されるだけで、`managed.json` に無いため誤って無効化・削除されることはありません。
 
 ## 安全設計まとめ
 
@@ -80,6 +95,16 @@ skill-launcher/
 │   ├── manager.py         # 有効化/無効化/編集/エクスポートのロジック
 │   └── api.py             # aiohttp ルーティング
 ├── static/                # SPA（Bootstrap + vanilla JS）
+├── docs/                  # README 用スクリーンショット
 ├── requirements.txt
 └── start.sh
 ```
+
+## 動作環境
+
+- macOS / Linux（`~/.claude/skills` への symlink 作成が前提。Windows は未検証）
+- Python 3.9 以降（動作確認: 3.9.6）
+
+## ライセンス
+
+[MIT](LICENSE)
