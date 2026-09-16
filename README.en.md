@@ -1,8 +1,12 @@
 # skill-launcher
 
-A local-only launcher / manager for Claude Skills (`SKILL.md`): collect them from several repos or folders, then browse, activate, edit and export them.
+[![CI](https://github.com/focuslight-nr/skill-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/focuslight-nr/skill-launcher/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 
-[日本語](README.md)
+[日本語](README.md) ・ **English**
+
+A local-only launcher / manager for Claude Skills (`SKILL.md`): collect them from several repos or folders, then browse, activate, edit and export them.
 
 > **This is a local-only tool.** The server binds to `127.0.0.1` and has no authentication. It reads and writes local files (editing `SKILL.md`, creating symlinks under `.claude/skills`), so **do not expose it on a public network or a shared host**.
 

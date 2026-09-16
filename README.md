@@ -1,8 +1,12 @@
 # skill-launcher
 
-Claude Skills（`SKILL.md` 形式）を複数のリポ/フォルダから集めて、一覧・有効化・編集・エクスポートするための、ローカル専用のスキルランチャー / マネージャです。
+[![CI](https://github.com/focuslight-nr/skill-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/focuslight-nr/skill-launcher/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 
-[English](README.en.md)
+**日本語** ・ [English](README.en.md)
+
+Claude Skills（`SKILL.md` 形式）を複数のリポ/フォルダから集めて、一覧・有効化・編集・エクスポートするための、ローカル専用のスキルランチャー / マネージャです。
 
 > **ローカル専用ツールです。** サーバーは `127.0.0.1` のみにバインドし、認証機構はありません。ローカルファイルの読み書き（`SKILL.md` の編集、`.claude/skills` への symlink 作成）を行うため、**公開ネットワークや共有ホストに晒さないでください**。
 
